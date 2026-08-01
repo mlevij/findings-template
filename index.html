@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Findings</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..800&family=Poppins:wght@300..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  /* ---------- Theme tokens ---------- */
+  :root {
+    --font: "Poppins", ui-sans-serif, system-ui, -apple-system;
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --border: #e5e7eb;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --accent: #1E4D2B;
+    --accent-contrast: #ffffff;
+    --shadow: 0 10px 20px rgba(0,0,0,.06);
+    --slot1: #2a78d6;
+    --slot2: #eb6834;
+    --boundary: #86b6ef;
+    --roads: #000000;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      --font: "Inter", ui-sans-serif, system-ui, -apple-system;
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #262c36;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-contrast: #0d1117;
+      --shadow: none;
+      --slot1: #3987e5;
+      --slot2: #d95926;
+      --boundary: #9ec5f4;
+      --roads: #000000;
+    }
+  }
+  :root[data-theme="dark"] {
+    --font: "Inter", ui-sans-serif, system-ui, -apple-system;
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #262c36;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-contrast: #0d1117;
+    --shadow: none;
+    --slot1: #3987e5;
+    --slot2: #d95926;
+    --boundary: #9085e9;
+    --roads: #c3c2b7;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+  }
+  a { color: var(--accent); }
+
+  header {
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 { margin: 0 0 4px; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; }
+  header p.subtitle { margin: 0 0 6px; color: var(--muted); font-size: 0.88rem; }
+  header p.summary { margin: 0 0 8px; color: var(--text); font-size: 0.83rem; max-width: 70ch; line-height: 1.5; }
+  .download-link {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .download-link:hover { text-decoration: underline; }
+
+  #themeToggle {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 7px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    flex-shrink: 0;
+  }
+  #themeToggle:hover { border-color: var(--accent); }
+
+  main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 22px 28px 60px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    margin: 0 0 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* Filters */
+  .cat-filter { display: flex; align-items: center; gap: 8px; font-size: 0.83rem; margin-bottom: 6px; cursor: pointer; user-select: none; }
+  .cat-swatch { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+  .cat-filter input { accent-color: var(--accent); }
+  select#groupFilter {
+    width: 100%;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-top: 8px;
+  }
+
+  /* Site list */
+  #siteList { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .site-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  .site-item:hover { background: var(--bg); }
+  .site-item.selected { background: var(--accent); color: var(--accent-contrast); }
+  .site-item.selected .muted-sub { color: var(--accent-contrast); opacity: 0.75; }
+  .site-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .site-item .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .muted-sub { color: var(--muted); font-size: 0.72rem; }
+
+  /* Map */
+  #map { height: 550px; border-radius: 10px; overflow: hidden; }
+  .basemap-toggle {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    margin: 0;
+  }
+  .basemap-toggle:hover { border-color: var(--accent); }
+  .huc10-label {
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    font-size: 0.68rem !important;
+    font-weight: 600;
+    padding: 1px 5px !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+  }
+  .huc10-label::before { display: none; }
+
+  /* Detail card */
+  #detailCard.empty { color: var(--muted); font-size: 0.85rem; }
+  .detail-group { margin-bottom: 14px; }
+  .detail-group:last-child { margin-bottom: 0; }
+  .detail-group h3 {
+    margin: 0 0 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.83rem;
+    padding: 3px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-row .k { color: var(--muted); }
+  .detail-row .v { text-align: right; font-weight: 500; }
+
+  /* Methodology accordion */
+  .section-toggle {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+  }
+  .section-toggle .chev { transition: transform 0.2s ease; color: var(--muted); }
+  .section-toggle.open .chev { transform: rotate(90deg); }
+  .section-body {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+  .section-body p { margin: 12px 0 0; }
+
+  .status { color: var(--muted); font-size: 0.85rem; padding: 30px 0; text-align: center; }
+
+  @media (max-width: 860px) {
+    main { flex-direction: column; }
+    .sidebar { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1 id="pageTitle">Loading&hellip;</h1>
+    <p class="subtitle" id="pageSubtitle"></p>
+    <p class="summary" id="pageSummary"></p>
+    <a id="downloadLink" class="download-link" download>Download raw data (CSV)</a>
+  </div>
+  <button id="themeToggle" type="button">Dark mode</button>
+</header>
+
+<main>
+  <aside class="sidebar">
+    <div class="card">
+      <h2>Filters</h2>
+      <div id="categoryFilters"></div>
+      <select id="groupFilter"><option value="">All groups</option></select>
+      <label class="cat-filter" style="margin-top:10px;">
+        <input type="checkbox" id="huc10Toggle">
+        <span>Show watershed boundaries</span>
+      </label>
+      <label class="cat-filter" style="margin-top:4px;">
+        <input type="checkbox" id="roadsToggle">
+        <span>Show roads</span>
+      </label>
+    </div>
+    <div class="card">
+      <h2>Sites (<span id="siteCount">0</span>)</h2>
+      <div id="siteList"></div>
+    </div>
+  </aside>
+
+  <div class="content">
+    <div class="card" style="padding:0;">
+      <div id="map"></div>
+    </div>
+
+    <div class="card">
+      <h2>Site details</h2>
+      <div id="detailCard" class="empty">Click a site on the map or in the list to see details.</div>
+    </div>
+
+    <div class="card">
+      <div class="section-toggle" id="methodologyToggle">
+        <h2 style="margin:0;">Methodology</h2>
+        <span class="chev">&#9656;</span>
+      </div>
+      <div class="section-body" id="methodologyBody">
+        <p id="methodologyText"></p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// Swap this to point at a different project's data file when reusing this template.
+const DATA_URL = "data/moffat-siting.json";
+const CSV_URL = "data/moffat-siting.csv";
+// Optional: a boundary GeoJSON shown as a toggleable overlay (e.g. watersheds).
+// Set to null for projects that don't have one.
+const BOUNDARY_URL = "data/moffat-huc10.geojson";
+const BOUNDARY_NAME_FIELD = "name";
+// Optional: a roads GeoJSON overlay. Set to null for projects that don't have one.
+// Expects an ADMINCLASS-like field so primitive/non-maintained tracks can be styled
+// differently from real maintained roads -- adjust ROADS_ROUGH_CLASSES to match
+// whatever source data is used.
+const ROADS_URL = "data/moffat-roads.geojson";
+const ROADS_CLASS_FIELD = "ADMINCLASS";
+const ROADS_ROUGH_CLASSES = ["Primitive/Non-maintained", "Open non-HUTF Eligible"];
+
+// Appended to data fetches (not the CSV download link) so a local dev server's
+// Last-Modified/conditional-GET caching can't serve stale data after an edit --
+// bit us twice during development, since even a private tab doesn't reliably bypass it.
+const CACHE_BUST = "?v=" + Date.now();
+
+document.getElementById("downloadLink").href = CSV_URL;
+
+const SLOT_VARS = { 1: "--slot1", 2: "--slot2" };
+
+function slotColor(slot) {
+  return getComputedStyle(document.documentElement).getPropertyValue(SLOT_VARS[slot] || "--slot1").trim();
+}
+
+/* ---------- Map ---------- */
+// No initial setView here -- the first real view is set by fitMapToVisible() once
+// data loads, so tiles are only fetched once instead of once for a placeholder view
+// and again after fitBounds recenters.
+//
+// Basemap light/dark is intentionally independent of the page theme -- a dark
+// basemap reads worse for most people even on an otherwise dark page, so this
+// defaults to light regardless of page theme and is controlled by its own toggle
+// button on the map instead.
+const map = L.map("map", { zoomSnap: 0.25, scrollWheelZoom: true });
+let tileLayer = null;
+let basemapDark = localStorage.getItem("findings-basemap") === "dark";
+
+function updateTileLayer(isDark) {
+  if (tileLayer) map.removeLayer(tileLayer);
+  tileLayer = isDark
+    ? L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 19,
+      })
+    // Topographic (contour/terrain-shaded) rather than a plain roadmap basemap --
+    // elevation/slope/aspect are direct covariates in this kind of siting data, so
+    // the default map itself should carry that context.
+    : L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", {
+        attribution: "Esri World Topo Map",
+        maxZoom: 19,
+      });
+  tileLayer.addTo(map);
+}
+updateTileLayer(basemapDark);
+
+const BasemapControl = L.Control.extend({
+  options: { position: "topright" },
+  onAdd: function () {
+    const btn = L.DomUtil.create("button", "basemap-toggle");
+    btn.type = "button";
+    btn.textContent = basemapDark ? "Light basemap" : "Dark basemap";
+    L.DomEvent.disableClickPropagation(btn);
+    L.DomEvent.on(btn, "click", () => {
+      basemapDark = !basemapDark;
+      localStorage.setItem("findings-basemap", basemapDark ? "dark" : "light");
+      updateTileLayer(basemapDark);
+      btn.textContent = basemapDark ? "Light basemap" : "Dark basemap";
+    });
+    return btn;
+  },
+});
+map.addControl(new BasemapControl());
+
+/* Optional boundary overlay (e.g. watershed outlines), toggled from the sidebar */
+let boundaryLayer = null;
+function boundaryColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue("--boundary").trim();
+}
+function refreshBoundaryColor() {
+  if (boundaryLayer) boundaryLayer.setStyle({ color: boundaryColor() });
+}
+const huc10Toggle = document.getElementById("huc10Toggle");
+if (BOUNDARY_URL) {
+  fetch(BOUNDARY_URL + CACHE_BUST)
+    .then(r => r.json())
+    .then(geojson => {
+      boundaryLayer = L.geoJSON(geojson, {
+        // Non-interactive: its fill (even at 3% opacity) would otherwise sit on top of
+        // the site markers and intercept clicks meant for them. Permanent tooltips still
+        // render fine on a non-interactive layer since they don't depend on hover/click.
+        interactive: false,
+        style: { color: boundaryColor(), weight: 2, opacity: 0.85, fillOpacity: 0.03 },
+        onEachFeature: (feature, layer) => {
+          const name = feature.properties[BOUNDARY_NAME_FIELD];
+          if (name) layer.bindTooltip(name, { permanent: true, direction: "center", className: "huc10-label" });
+        },
+      });
+      huc10Toggle.addEventListener("change", () => {
+        if (huc10Toggle.checked) boundaryLayer.addTo(map);
+        else map.removeLayer(boundaryLayer);
+      });
+    })
+    .catch(() => { huc10Toggle.closest("label").style.display = "none"; });
+} else {
+  huc10Toggle.closest("label").style.display = "none";
+}
+
+/* Optional roads overlay -- solid for real maintained roads, thin/dashed for
+   primitive/non-maintained tracks, so the "gnarly 2-track" distinction is visible. */
+let roadsLayer = null;
+const roadsToggle = document.getElementById("roadsToggle");
+function isRoughRoad(feature) {
+  const cls = (feature.properties[ROADS_CLASS_FIELD] || "");
+  return ROADS_ROUGH_CLASSES.some(rough => cls.includes(rough));
+}
+function roadsColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue("--roads").trim();
+}
+function roadStyle(feature) {
+  return isRoughRoad(feature)
+    ? { color: roadsColor(), weight: 1, opacity: 0.5, dashArray: "2 3" }
+    : { color: roadsColor(), weight: 2, opacity: 0.85 };
+}
+function refreshRoadsColor() {
+  if (roadsLayer) roadsLayer.setStyle(roadStyle);
+}
+if (ROADS_URL) {
+  fetch(ROADS_URL + CACHE_BUST)
+    .then(r => r.json())
+    .then(geojson => {
+      roadsLayer = L.geoJSON(geojson, {
+        style: roadStyle,
+        onEachFeature: (feature, layer) => {
+          const cls = feature.properties[ROADS_CLASS_FIELD];
+          const name = feature.properties.ROUTENAME;
+          if (cls || name) {
+            layer.bindTooltip([name, cls].filter(Boolean).join(" — "));
+          }
+        },
+      });
+      roadsToggle.addEventListener("change", () => {
+        if (roadsToggle.checked) roadsLayer.addTo(map);
+        else map.removeLayer(roadsLayer);
+      });
+    })
+    .catch(() => { roadsToggle.closest("label").style.display = "none"; });
+} else {
+  roadsToggle.closest("label").style.display = "none";
+}
+
+/* ---------- State ---------- */
+let DATA = null;
+let markersById = {};
+let activeCategories = new Set();
+let activeGroup = "";
+let selectedId = null;
+
+function refreshMarkerColors() {
+  if (!DATA) return;
+  DATA.points.forEach(p => {
+    const marker = markersById[p.id];
+    if (!marker) return;
+    const cat = DATA.categories.find(c => c.key === p.category);
+    marker.setStyle({ fillColor: slotColor(cat ? cat.colorSlot : 1) });
+  });
+}
+
+/* ---------- Theme ---------- */
+const themeToggle = document.getElementById("themeToggle");
+function applyTheme(theme) {
+  if (theme) document.documentElement.setAttribute("data-theme", theme);
+  else document.documentElement.removeAttribute("data-theme");
+  const isDark = theme === "dark" || (!theme && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  themeToggle.textContent = isDark ? "Light mode" : "Dark mode";
+  refreshMarkerColors();
+  refreshBoundaryColor();
+  refreshRoadsColor();
+}
+themeToggle.addEventListener("click", () => {
+  const current = document.documentElement.getAttribute("data-theme");
+  const isDarkNow = current === "dark" || (!current && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const next = isDarkNow ? "light" : "dark";
+  localStorage.setItem("findings-theme", next);
+  applyTheme(next);
+});
+applyTheme(localStorage.getItem("findings-theme"));
+
+fetch(DATA_URL + CACHE_BUST)
+  .then(r => r.json())
+  .then(json => {
+    DATA = json;
+    init();
+  })
+  .catch(err => {
+    document.getElementById("pageTitle").textContent = "Failed to load data";
+    document.getElementById("pageSubtitle").textContent = String(err);
+  });
+
+function init() {
+  document.getElementById("pageTitle").textContent = DATA.project.title;
+  document.getElementById("pageSubtitle").textContent = DATA.project.subtitle;
+  document.getElementById("pageSummary").textContent = DATA.project.summary;
+  document.getElementById("methodologyText").textContent = DATA.project.methodology;
+
+  DATA.categories.forEach(c => activeCategories.add(c.key));
+
+  buildCategoryFilters();
+  buildGroupFilter();
+  buildMarkers();
+  buildSiteList();
+  fitMapToVisible();
+
+  document.getElementById("methodologyToggle").addEventListener("click", () => {
+    const toggle = document.getElementById("methodologyToggle");
+    const body = document.getElementById("methodologyBody");
+    const opening = !toggle.classList.contains("open");
+    toggle.classList.toggle("open", opening);
+    body.style.maxHeight = opening ? body.scrollHeight + "px" : "0px";
+  });
+}
+
+function buildCategoryFilters() {
+  const wrap = document.getElementById("categoryFilters");
+  DATA.categories.forEach(c => {
+    const label = document.createElement("label");
+    label.className = "cat-filter";
+    const swatch = document.createElement("span");
+    swatch.className = "cat-swatch";
+    swatch.style.background = slotColor(c.colorSlot);
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = true;
+    input.addEventListener("change", () => {
+      if (input.checked) activeCategories.add(c.key);
+      else activeCategories.delete(c.key);
+      applyFilters();
+    });
+    const text = document.createElement("span");
+    text.textContent = c.label;
+    label.appendChild(input);
+    label.appendChild(swatch);
+    label.appendChild(text);
+    wrap.appendChild(label);
+  });
+}
+
+function buildGroupFilter() {
+  const select = document.getElementById("groupFilter");
+  const groups = Array.from(new Set(DATA.points.map(p => p.group))).sort();
+  groups.forEach(g => {
+    const opt = document.createElement("option");
+    opt.value = g;
+    opt.textContent = g;
+    select.appendChild(opt);
+  });
+  select.addEventListener("change", () => {
+    activeGroup = select.value;
+    applyFilters();
+  });
+}
+
+function isVisible(p) {
+  return activeCategories.has(p.category) && (!activeGroup || p.group === activeGroup);
+}
+
+function buildMarkers() {
+  DATA.points.forEach(p => {
+    const cat = DATA.categories.find(c => c.key === p.category);
+    const marker = L.circleMarker([p.lat, p.lon], {
+      radius: 7,
+      weight: 1.5,
+      color: "#ffffff",
+      fillColor: slotColor(cat ? cat.colorSlot : 1),
+      fillOpacity: 0.9,
+    }).bindTooltip(p.name);
+    marker.on("click", () => selectSite(p.id));
+    markersById[p.id] = marker;
+    marker.addTo(map);
+  });
+}
+
+function applyFilters() {
+  DATA.points.forEach(p => {
+    const marker = markersById[p.id];
+    const visible = isVisible(p);
+    if (visible && !map.hasLayer(marker)) marker.addTo(map);
+    if (!visible && map.hasLayer(marker)) map.removeLayer(marker);
+  });
+  buildSiteList();
+  fitMapToVisible();
+}
+
+function fitMapToVisible() {
+  const visiblePts = DATA.points.filter(isVisible);
+  if (!visiblePts.length) return;
+  const bounds = L.latLngBounds(visiblePts.map(p => [p.lat, p.lon]));
+  map.fitBounds(bounds, { padding: [24, 24] });
+}
+
+function buildSiteList() {
+  const list = document.getElementById("siteList");
+  list.innerHTML = "";
+  const visiblePts = DATA.points.filter(isVisible);
+  document.getElementById("siteCount").textContent = visiblePts.length;
+  visiblePts.forEach(p => {
+    const cat = DATA.categories.find(c => c.key === p.category);
+    const item = document.createElement("div");
+    item.className = "site-item" + (p.id === selectedId ? " selected" : "");
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    dot.style.background = slotColor(cat ? cat.colorSlot : 1);
+    const label = document.createElement("span");
+    label.className = "label";
+    label.textContent = p.name;
+    item.appendChild(dot);
+    item.appendChild(label);
+    item.addEventListener("click", () => selectSite(p.id));
+    list.appendChild(item);
+  });
+}
+
+let openTooltipMarker = null;
+
+function selectSite(id) {
+  selectedId = id;
+  buildSiteList();
+  const p = DATA.points.find(pt => pt.id === id);
+  if (!p) return;
+  if (openTooltipMarker) openTooltipMarker.closeTooltip();
+  const marker = markersById[id];
+  if (marker) {
+    map.panTo(marker.getLatLng());
+    marker.openTooltip();
+    openTooltipMarker = marker;
+  }
+  renderDetail(p);
+}
+
+function renderDetail(p) {
+  const card = document.getElementById("detailCard");
+  card.classList.remove("empty");
+  card.innerHTML = "";
+
+  const heading = document.createElement("div");
+  heading.style.marginBottom = "12px";
+  heading.innerHTML = `<div style="font-weight:700;font-size:0.95rem;">${escapeHtml(p.name)}</div>
+    <div class="muted-sub">${escapeHtml(p.lat.toFixed(5))}, ${escapeHtml(p.lon.toFixed(5))}</div>`;
+  card.appendChild(heading);
+
+  DATA.attributeGroups.forEach(group => {
+    const groupEl = document.createElement("div");
+    groupEl.className = "detail-group";
+    const h3 = document.createElement("h3");
+    h3.textContent = group.label;
+    groupEl.appendChild(h3);
+
+    group.fields.forEach(field => {
+      const val = p.attributes[field.key];
+      if (val === null || val === undefined || val === "") return;
+      const row = document.createElement("div");
+      row.className = "detail-row";
+      const display = field.unit ? `${val} ${field.unit}` : String(val);
+      row.innerHTML = `<span class="k">${escapeHtml(field.label)}</span><span class="v">${escapeHtml(display)}</span>`;
+      groupEl.appendChild(row);
+    });
+
+    if (groupEl.querySelectorAll(".detail-row").length) card.appendChild(groupEl);
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+
+</body>
+</html>
