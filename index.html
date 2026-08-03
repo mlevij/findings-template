@@ -26,6 +26,7 @@
     --slot2: #E64C00;
     --boundary: #004DA8;
     --roads: #4E4E4E;
+    --county: #52514e;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -42,6 +43,7 @@
       --slot2: #E64C00;
       --boundary: #004DA8;
       --roads: #4E4E4E;
+    --county: #52514e;
     }
   }
   :root[data-theme="dark"] {
@@ -58,6 +60,7 @@
     --slot2: #E64C00;
     --boundary: #004DA8;
     --roads: #4E4E4E;
+    --county: #52514e;
   }
 
   * { box-sizing: border-box; }
@@ -289,6 +292,10 @@
         <input type="checkbox" id="roadsToggle">
         <span>Show roads</span>
       </label>
+      <label class="cat-filter" style="margin-top:4px;">
+        <input type="checkbox" id="countyToggle">
+        <span>Show county boundary</span>
+      </label>
     </div>
     <div class="card">
       <h2>Sites (<span id="siteCount">0</span>)</h2>
@@ -339,6 +346,9 @@ const BOUNDARY_NAME_FIELD = "name";
 const ROADS_URL = "data/moffat-roads.geojson";
 const ROADS_CLASS_FIELD = "ADMINCLASS";
 const ROADS_ROUGH_CLASSES = ["Primitive/Non-maintained", "Open non-HUTF Eligible"];
+// Optional: a county/admin-area boundary overlay. Set to null for projects that
+// don't have one.
+const COUNTY_URL = "data/moffat-county.geojson";
 
 // Appended to data fetches (not the CSV download link) so a local dev server's
 // Last-Modified/conditional-GET caching can't serve stale data after an edit --
@@ -529,6 +539,35 @@ if (ROADS_URL) {
   roadsToggle.closest("label").style.display = "none";
 }
 
+/* Optional county/admin-area boundary -- dashed, no fill, so it reads as a
+   coarser administrative outline distinct from the solid watershed boundaries. */
+let countyLayer = null;
+const countyToggle = document.getElementById("countyToggle");
+function countyColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue("--county").trim();
+}
+function refreshCountyColor() {
+  if (countyLayer) countyLayer.setStyle({ color: countyColor() });
+}
+if (COUNTY_URL) {
+  fetch(COUNTY_URL + CACHE_BUST)
+    .then(r => r.json())
+    .then(geojson => {
+      countyLayer = L.geoJSON(geojson, {
+        interactive: false,
+        style: { color: countyColor(), weight: 2, opacity: 0.8, fill: false, dashArray: "6 4" },
+      });
+      if (countyToggle.checked) countyLayer.addTo(map);
+      countyToggle.addEventListener("change", () => {
+        if (countyToggle.checked) countyLayer.addTo(map);
+        else map.removeLayer(countyLayer);
+      });
+    })
+    .catch(() => { countyToggle.closest("label").style.display = "none"; });
+} else {
+  countyToggle.closest("label").style.display = "none";
+}
+
 /* ---------- State ---------- */
 let DATA = null;
 let markersById = {};
@@ -557,6 +596,7 @@ function applyTheme(theme) {
   refreshMarkerColors();
   refreshBoundaryColor();
   refreshRoadsColor();
+  refreshCountyColor();
 }
 themeToggle.addEventListener("click", () => {
   const current = document.documentElement.getAttribute("data-theme");
