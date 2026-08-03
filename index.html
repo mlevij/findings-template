@@ -409,7 +409,18 @@ if (BOUNDARY_URL) {
         style: { color: boundaryColor(), weight: 2, opacity: 0.85, fillOpacity: 0.03 },
         onEachFeature: (feature, layer) => {
           const name = feature.properties[BOUNDARY_NAME_FIELD];
-          if (name) layer.bindTooltip(name, { permanent: true, direction: "center", className: "huc10-label" });
+          if (!name) return;
+          // Bbox-center label placement can put two labels close together in screen
+          // space at the zoomed-out first-load view, even when the polygons themselves
+          // are well separated on the ground -- fixed-width label text doesn't shrink
+          // with zoom the way the map does. Manual pixel offsets pull specific known
+          // colliding pairs apart; add more entries here if another pair collides.
+          const LABEL_OFFSETS = {
+            "Deception Creek-Yampa River": [-45, -12],
+            "Morgan Gulch-Yampa River": [45, 12],
+          };
+          const offset = LABEL_OFFSETS[name] || [0, 0];
+          layer.bindTooltip(name, { permanent: true, direction: "center", className: "huc10-label", offset });
         },
       });
       huc10Toggle.addEventListener("change", () => {
