@@ -204,6 +204,10 @@
     box-shadow: none !important;
   }
   .huc10-label::before { display: none; }
+  /* Leaflet's SVG markers get a default browser focus outline on click -- a square
+     box around what's otherwise a circle. Emphasize selection via the marker's own
+     border/radius instead (see selectSite in the script). */
+  .leaflet-interactive:focus { outline: none; }
 
   /* Detail card */
   #detailCard.empty { color: var(--muted); font-size: 0.85rem; }
@@ -633,8 +637,7 @@ function buildMarkers() {
     const cat = DATA.categories.find(c => c.key === p.category);
     const fill = slotColor(cat ? cat.colorSlot : 1);
     const marker = L.circleMarker([p.lat, p.lon], {
-      radius: 7,
-      weight: 1.5,
+      ...MARKER_STYLE,
       color: darkenColor(fill),
       fillColor: fill,
       fillOpacity: 0.9,
@@ -686,17 +689,24 @@ function buildSiteList() {
 }
 
 let openTooltipMarker = null;
+const MARKER_STYLE = { radius: 7, weight: 1.5 };
+const MARKER_STYLE_SELECTED = { radius: 9, weight: 3 };
 
 function selectSite(id) {
   selectedId = id;
   buildSiteList();
   const p = DATA.points.find(pt => pt.id === id);
   if (!p) return;
-  if (openTooltipMarker) openTooltipMarker.closeTooltip();
+  if (openTooltipMarker) {
+    openTooltipMarker.closeTooltip();
+    openTooltipMarker.setStyle(MARKER_STYLE);
+  }
   const marker = markersById[id];
   if (marker) {
     map.panTo(marker.getLatLng());
     marker.openTooltip();
+    marker.setStyle(MARKER_STYLE_SELECTED);
+    marker.bringToFront();
     openTooltipMarker = marker;
   }
   renderDetail(p);
