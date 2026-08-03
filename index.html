@@ -339,6 +339,16 @@ function slotColor(slot) {
   return getComputedStyle(document.documentElement).getPropertyValue(SLOT_VARS[slot] || "--slot1").trim();
 }
 
+// Marker borders are a darker shade of their own fill rather than a fixed color, so
+// this stays correct automatically if the slot colors themselves ever change.
+function darkenColor(hex, amount = 0.7) {
+  const h = hex.replace("#", "");
+  const r = Math.round(parseInt(h.substring(0, 2), 16) * amount);
+  const g = Math.round(parseInt(h.substring(2, 4), 16) * amount);
+  const b = Math.round(parseInt(h.substring(4, 6), 16) * amount);
+  return `#${[r, g, b].map(v => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
 /* ---------- Map ---------- */
 // No initial setView here -- the first real view is set by fitMapToVisible() once
 // data loads, so tiles are only fetched once instead of once for a placeholder view
@@ -490,7 +500,8 @@ function refreshMarkerColors() {
     const marker = markersById[p.id];
     if (!marker) return;
     const cat = DATA.categories.find(c => c.key === p.category);
-    marker.setStyle({ fillColor: slotColor(cat ? cat.colorSlot : 1) });
+    const fill = slotColor(cat ? cat.colorSlot : 1);
+    marker.setStyle({ fillColor: fill, color: darkenColor(fill) });
   });
 }
 
@@ -595,11 +606,12 @@ function isVisible(p) {
 function buildMarkers() {
   DATA.points.forEach(p => {
     const cat = DATA.categories.find(c => c.key === p.category);
+    const fill = slotColor(cat ? cat.colorSlot : 1);
     const marker = L.circleMarker([p.lat, p.lon], {
       radius: 7,
       weight: 1.5,
-      color: "#ffffff",
-      fillColor: slotColor(cat ? cat.colorSlot : 1),
+      color: darkenColor(fill),
+      fillColor: fill,
       fillOpacity: 0.9,
     }).bindTooltip(p.name);
     marker.on("click", () => selectSite(p.id));
