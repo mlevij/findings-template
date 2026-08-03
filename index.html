@@ -25,7 +25,7 @@
     --slot1: #E6E600;
     --slot2: #E64C00;
     --boundary: #004DA8;
-    --roads: #999999;
+    --roads: #4E4E4E;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -41,7 +41,7 @@
       --slot1: #E6E600;
       --slot2: #E64C00;
       --boundary: #004DA8;
-      --roads: #999999;
+      --roads: #4E4E4E;
     }
   }
   :root[data-theme="dark"] {
@@ -57,7 +57,7 @@
     --slot1: #E6E600;
     --slot2: #E64C00;
     --boundary: #004DA8;
-    --roads: #999999;
+    --roads: #4E4E4E;
   }
 
   * { box-sizing: border-box; }
@@ -400,6 +400,21 @@ map.addControl(new BasemapControl());
 
 /* Optional boundary overlay (e.g. watershed outlines), toggled from the sidebar */
 let boundaryLayer = null;
+
+// The initial view fits to the boundary layer's extent (when available) rather than
+// just the site markers -- fitting to markers alone could crop off watershed labels
+// that extend past the outermost sites. Boundary and site data load via two independent
+// fetches, so track both readiness flags and only set the view once, whichever settles
+// last.
+let siteDataReady = false;
+let boundaryResolved = false;
+let initialViewSet = false;
+function maybeSetInitialView() {
+  if (initialViewSet || !siteDataReady || !boundaryResolved) return;
+  initialViewSet = true;
+  if (boundaryLayer) map.fitBounds(boundaryLayer.getBounds(), { padding: [24, 24] });
+  else fitMapToVisible();
+}
 function boundaryColor() {
   return getComputedStyle(document.documentElement).getPropertyValue("--boundary").trim();
 }
@@ -438,9 +453,16 @@ if (BOUNDARY_URL) {
         if (huc10Toggle.checked) boundaryLayer.addTo(map);
         else map.removeLayer(boundaryLayer);
       });
+      boundaryResolved = true;
+      maybeSetInitialView();
     })
-    .catch(() => { huc10Toggle.closest("label").style.display = "none"; });
+    .catch(() => {
+      huc10Toggle.closest("label").style.display = "none";
+      boundaryResolved = true;
+      maybeSetInitialView();
+    });
 } else {
+  boundaryResolved = true;
   huc10Toggle.closest("label").style.display = "none";
 }
 
@@ -548,7 +570,8 @@ function init() {
   buildGroupFilter();
   buildMarkers();
   buildSiteList();
-  fitMapToVisible();
+  siteDataReady = true;
+  maybeSetInitialView();
 
   document.getElementById("methodologyToggle").addEventListener("click", () => {
     const toggle = document.getElementById("methodologyToggle");
