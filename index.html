@@ -80,7 +80,9 @@
   }
   header h1 { margin: 0 0 4px; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; }
   header p.subtitle { margin: 0 0 6px; color: var(--muted); font-size: 0.88rem; }
-  header p.summary { margin: 0 0 8px; color: var(--text); font-size: 0.83rem; max-width: 70ch; line-height: 1.5; }
+  .summary { margin: 0 0 8px; max-width: 900px; }
+  .summary p { color: var(--text); font-size: 0.83rem; line-height: 1.6; margin: 0 0 10px; }
+  .summary p:last-child { margin-bottom: 0; }
   .download-link {
     display: inline-block;
     font-size: 0.78rem;
@@ -261,7 +263,7 @@
   <div>
     <h1 id="pageTitle">Loading&hellip;</h1>
     <p class="subtitle" id="pageSubtitle"></p>
-    <p class="summary" id="pageSummary"></p>
+    <div class="summary" id="pageSummary"></div>
     <a id="downloadLink" class="download-link" download>Download raw data (CSV)</a>
   </div>
   <button id="themeToggle" type="button">Dark mode</button>
@@ -304,7 +306,7 @@
         <span class="chev">&#9656;</span>
       </div>
       <div class="section-body" id="methodologyBody">
-        <p id="methodologyText"></p>
+        <div id="methodologyText"></div>
       </div>
     </div>
   </div>
@@ -561,8 +563,8 @@ fetch(DATA_URL + CACHE_BUST)
 function init() {
   document.getElementById("pageTitle").textContent = DATA.project.title;
   document.getElementById("pageSubtitle").textContent = DATA.project.subtitle;
-  document.getElementById("pageSummary").textContent = DATA.project.summary;
-  document.getElementById("methodologyText").textContent = DATA.project.methodology;
+  renderParagraphs(document.getElementById("pageSummary"), DATA.project.summary);
+  renderParagraphs(document.getElementById("methodologyText"), DATA.project.methodology);
 
   DATA.categories.forEach(c => activeCategories.add(c.key));
 
@@ -736,6 +738,18 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
+}
+
+// Accepts either a single string (one paragraph) or an array of strings (one <p>
+// per entry) so the data contract can support either without the page caring.
+function renderParagraphs(container, content) {
+  container.innerHTML = "";
+  const paragraphs = Array.isArray(content) ? content : [content];
+  paragraphs.forEach(text => {
+    const p = document.createElement("p");
+    p.textContent = text;
+    container.appendChild(p);
+  });
 }
 </script>
 
