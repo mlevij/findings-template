@@ -270,6 +270,7 @@
     <div class="summary" id="pageSummary"></div>
     <a id="downloadLink" class="download-link" download>Download raw data (CSV)</a>
     <a id="downloadKmlLink" class="download-link" download>Download KML</a>
+    <a id="downloadZipLink" class="download-link" download>Download all data (ZIP)</a>
   </div>
   <button id="themeToggle" type="button">Dark mode</button>
 </header>
@@ -324,6 +325,9 @@ const CSV_URL = "data/moffat-siting.csv";
 // Optional: a KML/KMZ download of the same points. Set to null for projects that
 // don't have one.
 const KML_URL = "data/moffat-siting.kmz";
+// Optional: a single zip bundling every data file on this page (see
+// scripts/build_zip_bundle.py). Set to null for projects that don't have one.
+const ZIP_URL = "data/moffat-siting-all.zip";
 // Optional: a boundary GeoJSON shown as a toggleable overlay (e.g. watersheds).
 // Set to null for projects that don't have one.
 const BOUNDARY_URL = "data/moffat-huc10.geojson";
@@ -345,6 +349,9 @@ document.getElementById("downloadLink").href = CSV_URL;
 const downloadKmlLink = document.getElementById("downloadKmlLink");
 if (KML_URL) downloadKmlLink.href = KML_URL;
 else downloadKmlLink.style.display = "none";
+const downloadZipLink = document.getElementById("downloadZipLink");
+if (ZIP_URL) downloadZipLink.href = ZIP_URL;
+else downloadZipLink.style.display = "none";
 
 const SLOT_VARS = { 1: "--slot1", 2: "--slot2" };
 
