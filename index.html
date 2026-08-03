@@ -84,7 +84,7 @@
   .summary p { color: var(--text); font-size: 0.83rem; line-height: 1.6; margin: 0 0 10px; }
   .summary p:last-child { margin-bottom: 0; }
   .download-link {
-    display: inline-block;
+    display: block;
     font-size: 0.78rem;
     font-weight: 600;
     color: var(--accent);
@@ -269,6 +269,7 @@
     <p class="subtitle" id="pageSubtitle"></p>
     <div class="summary" id="pageSummary"></div>
     <a id="downloadLink" class="download-link" download>Download raw data (CSV)</a>
+    <a id="downloadKmlLink" class="download-link" download>Download KML</a>
   </div>
   <button id="themeToggle" type="button">Dark mode</button>
 </header>
@@ -320,6 +321,9 @@
 // Swap this to point at a different project's data file when reusing this template.
 const DATA_URL = "data/moffat-siting.json";
 const CSV_URL = "data/moffat-siting.csv";
+// Optional: a KML/KMZ download of the same points. Set to null for projects that
+// don't have one.
+const KML_URL = "data/moffat-siting.kmz";
 // Optional: a boundary GeoJSON shown as a toggleable overlay (e.g. watersheds).
 // Set to null for projects that don't have one.
 const BOUNDARY_URL = "data/moffat-huc10.geojson";
@@ -338,6 +342,9 @@ const ROADS_ROUGH_CLASSES = ["Primitive/Non-maintained", "Open non-HUTF Eligible
 const CACHE_BUST = "?v=" + Date.now();
 
 document.getElementById("downloadLink").href = CSV_URL;
+const downloadKmlLink = document.getElementById("downloadKmlLink");
+if (KML_URL) downloadKmlLink.href = KML_URL;
+else downloadKmlLink.style.display = "none";
 
 const SLOT_VARS = { 1: "--slot1", 2: "--slot2" };
 
