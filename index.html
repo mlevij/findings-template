@@ -274,7 +274,7 @@
       <div id="categoryFilters"></div>
       <select id="groupFilter"><option value="">All groups</option></select>
       <label class="cat-filter" style="margin-top:10px;">
-        <input type="checkbox" id="huc10Toggle">
+        <input type="checkbox" id="huc10Toggle" checked>
         <span>Show watershed boundaries</span>
       </label>
       <label class="cat-filter" style="margin-top:4px;">
@@ -423,6 +423,7 @@ if (BOUNDARY_URL) {
           layer.bindTooltip(name, { permanent: true, direction: "center", className: "huc10-label", offset });
         },
       });
+      if (huc10Toggle.checked) boundaryLayer.addTo(map);
       huc10Toggle.addEventListener("change", () => {
         if (huc10Toggle.checked) boundaryLayer.addTo(map);
         else map.removeLayer(boundaryLayer);
